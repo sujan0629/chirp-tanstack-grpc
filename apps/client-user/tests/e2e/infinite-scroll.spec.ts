@@ -1,13 +1,20 @@
 import { expect, test } from "@playwright/test";
-import { createPost, loginAs, uniqueId, waitForHydration } from "./fixtures/test-helpers";
+import { loginAs, uniqueId, waitForHydration } from "./fixtures/test-helpers";
 
 test.describe.configure({ mode: "serial" });
 
-async function seedPosts(page: Parameters<typeof createPost>[0], count: number): Promise<string> {
+async function createFeedPost(page: Parameters<typeof loginAs>[0], content: string): Promise<void> {
+	await page.getByPlaceholder("What's happening?").fill(content);
+	await page.getByRole("button", { name: "Post", exact: true }).click();
+	await waitForHydration(page);
+	await expect(page.getByText(content)).toBeVisible();
+}
+
+async function seedPosts(page: Parameters<typeof loginAs>[0], count: number): Promise<string> {
 	const prefix = uniqueId("infinite");
 
 	for (let index = 0; index < count; index += 1) {
-		await createPost(page, `${prefix} post ${index + 1}`);
+		await createFeedPost(page, `${prefix} post ${index + 1}`);
 	}
 
 	return prefix;
@@ -16,6 +23,9 @@ async function seedPosts(page: Parameters<typeof createPost>[0], count: number):
 test.describe("infinite scroll feeds", () => {
 	test.beforeEach(async ({ page }) => {
 		await loginAs(page, "alice");
+		await page.evaluate(() => window.sessionStorage.clear());
+		await page.goto("/", { waitUntil: "networkidle" });
+		await waitForHydration(page);
 	});
 
 	test("loads an initial Home feed without a manual load-more control", async ({ page }) => {
