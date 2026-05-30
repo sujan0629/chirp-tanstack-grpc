@@ -36,6 +36,31 @@ interface UseInfinitePostsOptions {
 
 const feedCache = new Map<string, FeedCache>();
 
+function getScrollStorageKey(cacheKey: string): string {
+	return `chirp-feed-scroll:${cacheKey}`;
+}
+
+function readStoredScroll(cacheKey: string): number {
+	if (typeof window === "undefined") return 0;
+
+	const storedScroll = window.sessionStorage.getItem(getScrollStorageKey(cacheKey));
+	return storedScroll ? Number(storedScroll) : 0;
+}
+
+function writeStoredScroll(cacheKey: string, scrollY: number): void {
+	if (typeof window === "undefined") return;
+
+	window.sessionStorage.setItem(getScrollStorageKey(cacheKey), String(scrollY));
+}
+
+function isActiveFeedRoute(cacheKey: string): boolean {
+	if (typeof window === "undefined") return false;
+
+	if (cacheKey === "home-feed") return window.location.pathname === "/";
+	if (cacheKey === "explore-feed") return window.location.pathname === "/explore";
+	return true;
+}
+
 function getCache(cacheKey: string): FeedCache {
 	const existing = feedCache.get(cacheKey);
 	if (existing) {
@@ -47,7 +72,7 @@ function getCache(cacheKey: string): FeedCache {
 		nextOffset: 0,
 		hasMore: true,
 		initialized: false,
-		scrollY: 0,
+		scrollY: readStoredScroll(cacheKey),
 	};
 	feedCache.set(cacheKey, nextCache);
 	return nextCache;
@@ -155,23 +180,32 @@ export function useInfinitePosts({ cacheKey, enabled, fetchPosts }: UseInfiniteP
 		setHasMore(currentCache.hasMore);
 		setInitialLoading(false);
 
+		const restoreScroll = () => {
+			window.scrollTo({ top: readStoredScroll(cacheKey) || currentCache.scrollY });
+		};
+
 		window.requestAnimationFrame(() => {
-			window.scrollTo({ top: currentCache.scrollY });
+			restoreScroll();
+			window.requestAnimationFrame(restoreScroll);
 		});
+		window.setTimeout(restoreScroll, 100);
 	}, [cacheKey, enabled, loadPage]);
 
 	useEffect(() => {
 		if (!enabled) return;
 
 		const updateScrollPosition = () => {
-			getCache(cacheKey).scrollY = window.scrollY;
+			if (!isActiveFeedRoute(cacheKey)) return;
+
+			const scrollY = window.scrollY;
+			getCache(cacheKey).scrollY = scrollY;
+			writeStoredScroll(cacheKey, scrollY);
 		};
 
 		window.addEventListener("scroll", updateScrollPosition, { passive: true });
 
 		return () => {
 			window.removeEventListener("scroll", updateScrollPosition);
-			getCache(cacheKey).scrollY = window.scrollY;
 		};
 	}, [cacheKey, enabled]);
 
