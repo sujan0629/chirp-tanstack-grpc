@@ -11,6 +11,20 @@ import { UserAvatar } from "../users/UserAvatar";
 import { BookmarkButton } from "./BookmarkButton";
 import { RepostButton, type RepostToggleResult } from "./RepostButton";
 
+const CONTENT_WARNING_PREFIX = "::content-warning:";
+
+function parseContentWarning(content: string): { warning: string; content: string } | null {
+	if (!content.startsWith(CONTENT_WARNING_PREFIX)) return null;
+
+	const endIndex = content.indexOf("::\n", CONTENT_WARNING_PREFIX.length);
+	if (endIndex === -1) return null;
+
+	return {
+		warning: decodeURIComponent(content.slice(CONTENT_WARNING_PREFIX.length, endIndex)),
+		content: content.slice(endIndex + 3),
+	};
+}
+
 const fadeInUp = stylex.keyframes({
 	from: {
 		opacity: 0,
@@ -114,6 +128,33 @@ const styles = stylex.create({
 		":hover": {
 			color: semanticColors.textSecondary,
 		},
+	},
+	warningBox: {
+		marginTop: spacing.sm,
+		padding: spacing.md,
+		borderRadius: radii.lg,
+		backgroundColor: colors.gray50,
+		borderWidth: "1px",
+		borderStyle: "solid",
+		borderColor: colors.amber500,
+		color: semanticColors.textPrimary,
+	},
+	warningTitle: {
+		fontWeight: 700,
+		marginBottom: spacing.xs,
+	},
+	warningButton: {
+		marginTop: spacing.sm,
+		border: "none",
+		borderRadius: radii.full,
+		backgroundColor: colors.amber500,
+		color: colors.white,
+		cursor: "pointer",
+		fontWeight: 700,
+		paddingLeft: spacing.md,
+		paddingRight: spacing.md,
+		paddingTop: spacing.xs,
+		paddingBottom: spacing.xs,
 	},
 	actions: {
 		display: "flex",
@@ -250,6 +291,9 @@ export function PostCard({
 	const [likeCount, setLikeCount] = useState(post.likeCount);
 	const [loading, setLoading] = useState(false);
 	const [animateLike, setAnimateLike] = useState(false);
+	const warning = parseContentWarning(post.content);
+	const [warningRevealed, setWarningRevealed] = useState(warning === null);
+	const displayContent = warning?.content ?? post.content;
 
 	const isOwnPost = currentUserId === post.author.id;
 	const canEdit = isOwnPost && Date.now() - post.createdAt.getTime() < 5 * 60 * 1000;
@@ -331,14 +375,28 @@ export function PostCard({
 					</div>
 
 					{/* Post Content */}
+					{warning && !warningRevealed ? (
+						<div {...stylex.props(styles.warningBox)}>
+							<div {...stylex.props(styles.warningTitle)}>Content warning</div>
+							<div>{warning.warning}</div>
+							<button
+								type="button"
+								onClick={() => setWarningRevealed(true)}
+								{...stylex.props(styles.warningButton)}
+							>
+								Show post
+							</button>
+						</div>
+					) : (
 						<Link
 							to="/posts/$postId"
 							params={{ postId: post.id }}
 							data-post-action="open"
 							{...stylex.props(styles.postContent)}
 						>
-						<ParsedContent content={post.content} />
-					</Link>
+							<ParsedContent content={displayContent} />
+						</Link>
+					)}
 
 					{/* Actions */}
 					<div {...stylex.props(styles.actions)}>

@@ -1,10 +1,48 @@
 import * as stylex from "@stylexjs/stylex";
-import { AlertCircle, Send } from "lucide-react";
-import { useState } from "react";
+import { AlertCircle, Send, ShieldAlert } from "lucide-react";
+import { useEffect, useState } from "react";
 import { createPost } from "../../server/functions/posts";
 import { colors, radii, semanticColors, spacing } from "../../tokens.stylex";
 import { CharacterCount } from "../shared/CharacterCount";
 import { useMentionAutocomplete } from "../shared/useMentionAutocomplete";
+
+const DRAFT_KEY = "chirp-post-draft";
+const CONTENT_WARNING_PREFIX = "::content-warning:";
+
+interface PostDraft {
+	content: string;
+	contentWarning: string;
+	warningEnabled: boolean;
+}
+
+function getStoredDraft(): PostDraft {
+	if (typeof window === "undefined") {
+		return { content: "", contentWarning: "", warningEnabled: false };
+	}
+
+	const rawDraft = window.sessionStorage.getItem(DRAFT_KEY);
+	if (!rawDraft) {
+		return { content: "", contentWarning: "", warningEnabled: false };
+	}
+
+	try {
+		const draft = JSON.parse(rawDraft) as Partial<PostDraft>;
+		return {
+			content: draft.content ?? "",
+			contentWarning: draft.contentWarning ?? "",
+			warningEnabled: draft.warningEnabled ?? false,
+		};
+	} catch {
+		return { content: "", contentWarning: "", warningEnabled: false };
+	}
+}
+
+function encodePostContent(content: string, contentWarning: string): string {
+	const warning = contentWarning.trim();
+	if (!warning) return content;
+
+	return `${CONTENT_WARNING_PREFIX}${encodeURIComponent(warning)}::\n${content}`;
+}
 
 const spin = stylex.keyframes({
 	from: { transform: "rotate(0deg)" },
@@ -62,6 +100,39 @@ const styles = stylex.create({
 		justifyContent: "space-between",
 		marginTop: spacing.md,
 	},
+	options: {
+		marginTop: spacing.md,
+		display: "flex",
+		flexDirection: "column",
+		gap: spacing.sm,
+	},
+	warningToggle: {
+		display: "inline-flex",
+		alignItems: "center",
+		gap: spacing.sm,
+		alignSelf: "flex-start",
+		backgroundColor: "transparent",
+		border: "none",
+		color: semanticColors.textSecondary,
+		cursor: "pointer",
+		fontSize: "0.875rem",
+		fontWeight: 600,
+		padding: 0,
+	},
+	warningInput: {
+		width: "100%",
+		borderWidth: "1px",
+		borderStyle: "solid",
+		borderColor: semanticColors.borderSubtle,
+		borderRadius: radii.lg,
+		padding: spacing.sm,
+		fontSize: "0.875rem",
+		outline: "none",
+		":focus": {
+			borderColor: colors.indigo500,
+			boxShadow: "0 0 0 3px rgba(99, 102, 241, 0.08)",
+		},
+	},
 	submitButton: {
 		display: "flex",
 		alignItems: "center",
@@ -106,7 +177,10 @@ const styles = stylex.create({
 });
 
 export function PostForm({ onSuccess }: { onSuccess?: () => void }) {
+	const [draftLoaded, setDraftLoaded] = useState(false);
 	const [content, setContent] = useState("");
+	const [contentWarning, setContentWarning] = useState("");
+	const [warningEnabled, setWarningEnabled] = useState(false);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 	const [isFocused, setIsFocused] = useState(false);
@@ -114,6 +188,26 @@ export function PostForm({ onSuccess }: { onSuccess?: () => void }) {
 		value: content,
 		onChange: setContent,
 	});
+
+	useEffect(() => {
+		const draft = getStoredDraft();
+		setContent(draft.content);
+		setContentWarning(draft.contentWarning);
+		setWarningEnabled(draft.warningEnabled);
+		setDraftLoaded(true);
+	}, []);
+
+	useEffect(() => {
+		if (!draftLoaded || typeof window === "undefined") return;
+
+		const draft: PostDraft = { content, contentWarning, warningEnabled };
+		if (!content.trim() && !contentWarning.trim()) {
+			window.sessionStorage.removeItem(DRAFT_KEY);
+			return;
+		}
+
+		window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+	}, [content, contentWarning, draftLoaded, warningEnabled]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -123,8 +217,11 @@ export function PostForm({ onSuccess }: { onSuccess?: () => void }) {
 		setError("");
 
 		try {
-			await createPost({ data: { content } });
+			await createPost({ data: { content: encodePostContent(content, contentWarning) } });
 			setContent("");
+			setContentWarning("");
+			setWarningEnabled(false);
+			window.sessionStorage.removeItem(DRAFT_KEY);
 			mentionAutocomplete.closeMentionMenu();
 			onSuccess?.();
 		} catch (err) {
@@ -160,6 +257,28 @@ export function PostForm({ onSuccess }: { onSuccess?: () => void }) {
 					{...mentionAutocomplete.mentionTextareaProps}
 				/>
 				{mentionAutocomplete.mentionMenu}
+			</div>
+
+			<div {...stylex.props(styles.options)}>
+				<button
+					type="button"
+					onClick={() => setWarningEnabled((enabled) => !enabled)}
+					{...stylex.props(styles.warningToggle)}
+				>
+					<ShieldAlert size={16} />
+					Content warning
+				</button>
+				{warningEnabled && (
+					<input
+						type="text"
+						value={contentWarning}
+						onChange={(event) => setContentWarning(event.target.value)}
+						placeholder="Add a warning"
+						aria-label="Content warning text"
+						maxLength={80}
+						{...stylex.props(styles.warningInput)}
+					/>
+				)}
 			</div>
 
 			<div {...stylex.props(styles.footer)}>
