@@ -6,6 +6,10 @@ vi.mock("../../../src/server/functions/posts", () => ({
 	createPost: vi.fn(),
 }));
 
+vi.mock("../../../src/server/functions/search", () => ({
+	searchUsers: vi.fn().mockResolvedValue([]),
+}));
+
 describe("PostForm", () => {
 	it("renders textarea and submit button", () => {
 		render(<PostForm />);
