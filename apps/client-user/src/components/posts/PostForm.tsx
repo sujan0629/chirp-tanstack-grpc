@@ -1,11 +1,10 @@
 import * as stylex from "@stylexjs/stylex";
 import { AlertCircle, Send } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { createPost } from "../../server/functions/posts";
-import { searchUsers } from "../../server/functions/search";
-import { colors, radii, semanticColors, shadows, spacing, zIndex } from "../../tokens.stylex";
+import { colors, radii, semanticColors, spacing } from "../../tokens.stylex";
 import { CharacterCount } from "../shared/CharacterCount";
-import { UserAvatar } from "../users/UserAvatar";
+import { useMentionAutocomplete } from "../shared/useMentionAutocomplete";
 
 const spin = stylex.keyframes({
 	from: { transform: "rotate(0deg)" },
@@ -57,59 +56,6 @@ const styles = stylex.create({
 			color: semanticColors.textTertiary,
 		},
 	},
-	mentionsMenu: {
-		position: "absolute",
-		zIndex: zIndex.popover,
-		width: "15rem",
-		maxHeight: "14rem",
-		overflowY: "auto",
-		backgroundColor: semanticColors.surfaceCard,
-		borderWidth: "1px",
-		borderStyle: "solid",
-		borderColor: semanticColors.borderDefault,
-		borderRadius: radii.lg,
-		boxShadow: shadows.lg,
-		paddingTop: spacing.xs,
-		paddingBottom: spacing.xs,
-	},
-	mentionOption: {
-		width: "100%",
-		display: "flex",
-		alignItems: "center",
-		gap: spacing.sm,
-		paddingLeft: spacing.sm,
-		paddingRight: spacing.sm,
-		paddingTop: spacing.sm,
-		paddingBottom: spacing.sm,
-		backgroundColor: "transparent",
-		border: "none",
-		cursor: "pointer",
-		textAlign: "left",
-		":hover": {
-			backgroundColor: semanticColors.bgHover,
-		},
-	},
-	mentionOptionActive: {
-		backgroundColor: semanticColors.primaryLight,
-	},
-	mentionUserInfo: {
-		minWidth: 0,
-	},
-	mentionDisplayName: {
-		color: semanticColors.textPrimary,
-		fontSize: "0.875rem",
-		fontWeight: 600,
-		overflow: "hidden",
-		textOverflow: "ellipsis",
-		whiteSpace: "nowrap",
-	},
-	mentionUsername: {
-		color: semanticColors.textSecondary,
-		fontSize: "0.75rem",
-		overflow: "hidden",
-		textOverflow: "ellipsis",
-		whiteSpace: "nowrap",
-	},
 	footer: {
 		display: "flex",
 		alignItems: "center",
@@ -159,120 +105,15 @@ const styles = stylex.create({
 	},
 });
 
-interface MentionUser {
-	id: string;
-	username: string;
-	displayName: string;
-	avatarUrl?: string;
-	bio?: string;
-}
-
-interface ActiveMention {
-	start: number;
-	query: string;
-}
-
-interface MentionMenuPosition {
-	top: number;
-	left: number;
-}
-
-function getActiveMention(value: string, cursor: number): ActiveMention | null {
-	const beforeCursor = value.slice(0, cursor);
-	const match = /(^|\s)@([a-zA-Z0-9_]*)$/.exec(beforeCursor);
-
-	if (!match || match[2].length === 0) {
-		return null;
-	}
-
-	return {
-		start: beforeCursor.length - match[2].length - 1,
-		query: match[2],
-	};
-}
-
-function getMentionMenuPosition(
-	textarea: HTMLTextAreaElement,
-	mentionStart: number,
-): MentionMenuPosition {
-	const style = window.getComputedStyle(textarea);
-	const lineHeight = Number.parseFloat(style.lineHeight) || 24;
-	const fontSize = Number.parseFloat(style.fontSize) || 15;
-	const averageCharacterWidth = fontSize * 0.55;
-	const textBeforeMention = textarea.value.slice(0, mentionStart);
-	const currentLine = textBeforeMention.split("\n").at(-1) ?? "";
-	const lines = textBeforeMention.split("\n").length - 1;
-
-	return {
-		top:
-			textarea.offsetTop +
-			textarea.scrollTop +
-			spacingToNumber(style.paddingTop) +
-			(lines + 1) * lineHeight,
-		left:
-			textarea.offsetLeft +
-			spacingToNumber(style.paddingLeft) +
-			Math.min(currentLine.length * averageCharacterWidth, textarea.clientWidth - 240),
-	};
-}
-
-function spacingToNumber(value: string): number {
-	const parsed = Number.parseFloat(value);
-	return Number.isNaN(parsed) ? 0 : parsed;
-}
-
 export function PostForm({ onSuccess }: { onSuccess?: () => void }) {
 	const [content, setContent] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 	const [isFocused, setIsFocused] = useState(false);
-	const [activeMention, setActiveMention] = useState<ActiveMention | null>(null);
-	const [mentionUsers, setMentionUsers] = useState<MentionUser[]>([]);
-	const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
-	const [mentionMenuPosition, setMentionMenuPosition] = useState<MentionMenuPosition>({
-		top: 0,
-		left: 0,
+	const mentionAutocomplete = useMentionAutocomplete({
+		value: content,
+		onChange: setContent,
 	});
-	const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-	useEffect(() => {
-		if (!activeMention) {
-			setMentionUsers([]);
-			setSelectedMentionIndex(0);
-			return;
-		}
-
-		let active = true;
-		const timeout = window.setTimeout(() => {
-			searchUsers({ data: activeMention.query })
-				.then((users) => {
-					if (!active) return;
-					setMentionUsers(users.slice(0, 5));
-					setSelectedMentionIndex(0);
-				})
-				.catch((err) => {
-					console.error("Mention search failed:", err);
-					if (active) {
-						setMentionUsers([]);
-					}
-				});
-		}, 150);
-
-		return () => {
-			active = false;
-			window.clearTimeout(timeout);
-		};
-	}, [activeMention]);
-
-	const updateMentionState = (value: string, cursor: number) => {
-		const mention = getActiveMention(value, cursor);
-		setActiveMention(mention);
-
-		const textarea = textareaRef.current;
-		if (mention && textarea) {
-			setMentionMenuPosition(getMentionMenuPosition(textarea, mention.start));
-		}
-	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -284,7 +125,7 @@ export function PostForm({ onSuccess }: { onSuccess?: () => void }) {
 		try {
 			await createPost({ data: { content } });
 			setContent("");
-			setActiveMention(null);
+			mentionAutocomplete.closeMentionMenu();
 			onSuccess?.();
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to create post");
@@ -292,63 +133,6 @@ export function PostForm({ onSuccess }: { onSuccess?: () => void }) {
 			setLoading(false);
 		}
 	};
-
-	const insertMention = (user: MentionUser) => {
-		if (!activeMention) return;
-
-		const textarea = textareaRef.current;
-		const cursor = textarea?.selectionStart ?? content.length;
-		const replacement = `@${user.username} `;
-		const nextContent = `${content.slice(0, activeMention.start)}${replacement}${content.slice(cursor)}`;
-		const nextCursor = activeMention.start + replacement.length;
-
-		setContent(nextContent);
-		setActiveMention(null);
-		setMentionUsers([]);
-
-		window.requestAnimationFrame(() => {
-			textarea?.focus();
-			textarea?.setSelectionRange(nextCursor, nextCursor);
-		});
-	};
-
-	const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-		const nextContent = e.target.value;
-		setContent(nextContent);
-		updateMentionState(nextContent, e.target.selectionStart);
-	};
-
-	const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-		if (!activeMention || mentionUsers.length === 0) {
-			return;
-		}
-
-		if (e.key === "ArrowDown") {
-			e.preventDefault();
-			setSelectedMentionIndex((index) => (index + 1) % mentionUsers.length);
-			return;
-		}
-
-		if (e.key === "ArrowUp") {
-			e.preventDefault();
-			setSelectedMentionIndex((index) => (index - 1 + mentionUsers.length) % mentionUsers.length);
-			return;
-		}
-
-		if (e.key === "Enter" || e.key === "Tab") {
-			e.preventDefault();
-			insertMention(mentionUsers[selectedMentionIndex]);
-			return;
-		}
-
-		if (e.key === "Escape") {
-			e.preventDefault();
-			setActiveMention(null);
-			setMentionUsers([]);
-		}
-	};
-
-	const showMentionMenu = activeMention !== null && mentionUsers.length > 0;
 
 	return (
 		<form onSubmit={handleSubmit} {...stylex.props(styles.form)}>
@@ -361,54 +145,21 @@ export function PostForm({ onSuccess }: { onSuccess?: () => void }) {
 
 			<div {...stylex.props(styles.inputWrapper, isFocused && styles.inputWrapperFocused)}>
 				<textarea
-					ref={textareaRef}
+					ref={mentionAutocomplete.textareaRef}
 					value={content}
-					onChange={handleTextareaChange}
+					onChange={mentionAutocomplete.handleChange}
 					onFocus={() => setIsFocused(true)}
 					onBlur={() => setIsFocused(false)}
-					onKeyDown={handleTextareaKeyDown}
-					onClick={(e) => updateMentionState(content, e.currentTarget.selectionStart)}
-					onKeyUp={(e) => updateMentionState(content, e.currentTarget.selectionStart)}
+					onKeyDown={mentionAutocomplete.handleKeyDown}
+					onClick={mentionAutocomplete.handleCursorMove}
+					onKeyUp={mentionAutocomplete.handleCursorMove}
 					placeholder="What's happening?"
 					{...stylex.props(styles.textarea)}
 					rows={3}
 					maxLength={280}
-					aria-controls={showMentionMenu ? "mention-suggestions" : undefined}
-					aria-autocomplete="list"
+					{...mentionAutocomplete.mentionTextareaProps}
 				/>
-				{showMentionMenu && (
-					<div
-						id="mention-suggestions"
-						role="listbox"
-						aria-label="Mention suggestions"
-						{...stylex.props(styles.mentionsMenu)}
-						style={{
-							top: mentionMenuPosition.top,
-							left: mentionMenuPosition.left,
-						}}
-					>
-						{mentionUsers.map((user, index) => (
-							<button
-								key={user.id}
-								type="button"
-								role="option"
-								aria-selected={selectedMentionIndex === index}
-								onMouseDown={(e) => e.preventDefault()}
-								onClick={() => insertMention(user)}
-								{...stylex.props(
-									styles.mentionOption,
-									selectedMentionIndex === index && styles.mentionOptionActive,
-								)}
-							>
-								<UserAvatar avatarUrl={user.avatarUrl} username={user.username} size="sm" />
-								<span {...stylex.props(styles.mentionUserInfo)}>
-									<span {...stylex.props(styles.mentionDisplayName)}>{user.displayName}</span>
-									<span {...stylex.props(styles.mentionUsername)}>@{user.username}</span>
-								</span>
-							</button>
-						))}
-					</div>
-				)}
+				{mentionAutocomplete.mentionMenu}
 			</div>
 
 			<div {...stylex.props(styles.footer)}>

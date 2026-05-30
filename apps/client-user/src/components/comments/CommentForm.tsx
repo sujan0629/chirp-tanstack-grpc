@@ -3,6 +3,7 @@ import { AlertCircle, Send } from "lucide-react";
 import { useState } from "react";
 import { createComment } from "../../server/functions/comments";
 import { colors, radii, semanticColors, spacing } from "../../tokens.stylex";
+import { useMentionAutocomplete } from "../shared/useMentionAutocomplete";
 
 const spin = stylex.keyframes({
 	from: { transform: "rotate(0deg)" },
@@ -126,6 +127,10 @@ export function CommentForm({
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 	const [isFocused, setIsFocused] = useState(false);
+	const mentionAutocomplete = useMentionAutocomplete({
+		value: content,
+		onChange: setContent,
+	});
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -137,6 +142,7 @@ export function CommentForm({
 		try {
 			await createComment({ data: { postId, content, parentId } });
 			setContent("");
+			mentionAutocomplete.closeMentionMenu();
 			onSuccess?.();
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to add comment");
@@ -155,14 +161,20 @@ export function CommentForm({
 			)}
 			<div {...stylex.props(styles.inputWrapper, isFocused && styles.inputWrapperFocused)}>
 				<textarea
+					ref={mentionAutocomplete.textareaRef}
 					value={content}
-					onChange={(e) => setContent(e.target.value)}
+					onChange={mentionAutocomplete.handleChange}
 					onFocus={() => setIsFocused(true)}
 					onBlur={() => setIsFocused(false)}
+					onKeyDown={mentionAutocomplete.handleKeyDown}
+					onClick={mentionAutocomplete.handleCursorMove}
+					onKeyUp={mentionAutocomplete.handleCursorMove}
 					placeholder="Write a comment..."
 					{...stylex.props(styles.textarea)}
 					rows={2}
+					{...mentionAutocomplete.mentionTextareaProps}
 				/>
+				{mentionAutocomplete.mentionMenu}
 			</div>
 			<div {...stylex.props(styles.footer)}>
 				<span

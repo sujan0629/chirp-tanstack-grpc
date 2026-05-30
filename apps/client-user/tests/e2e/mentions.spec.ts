@@ -102,4 +102,19 @@ test.describe("Mentions", () => {
 
 		await expect(page.getByRole("listbox", { name: "Mention suggestions" })).not.toBeVisible();
 	});
+
+	test("shows and inserts mention suggestions in comments", async ({ page }) => {
+		const postLink = page.locator('article a[href*="/posts/"]').first();
+		await postLink.click();
+		await waitForHydration(page);
+
+		const commentBox = page.locator('textarea[placeholder*="comment"]');
+		await commentBox.fill("Replying to @bo");
+		await expect(page.getByRole("option", { name: /Bob Smith @bob/i })).toBeVisible();
+
+		await commentBox.press("Enter");
+
+		await expect(commentBox).toHaveValue("Replying to @bob ");
+		await expect(page.getByRole("listbox", { name: "Mention suggestions" })).not.toBeVisible();
+	});
 });
