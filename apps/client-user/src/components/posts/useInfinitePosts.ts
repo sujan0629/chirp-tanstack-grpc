@@ -161,10 +161,19 @@ export function useInfinitePosts({ cacheKey, enabled, fetchPosts }: UseInfiniteP
 	}, [cacheKey, enabled, loadPage]);
 
 	useEffect(() => {
-		return () => {
+		if (!enabled) return;
+
+		const updateScrollPosition = () => {
 			getCache(cacheKey).scrollY = window.scrollY;
 		};
-	}, [cacheKey]);
+
+		window.addEventListener("scroll", updateScrollPosition, { passive: true });
+
+		return () => {
+			window.removeEventListener("scroll", updateScrollPosition);
+			getCache(cacheKey).scrollY = window.scrollY;
+		};
+	}, [cacheKey, enabled]);
 
 	useEffect(() => {
 		const sentinel = sentinelRef.current;
