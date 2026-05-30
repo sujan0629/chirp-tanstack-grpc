@@ -24,6 +24,15 @@ function PostPage() {
 		loadData();
 	}, [postId]);
 
+	useEffect(() => {
+		if (!post || window.sessionStorage.getItem("focusReplyPostId") !== postId) return;
+
+		window.sessionStorage.removeItem("focusReplyPostId");
+		window.requestAnimationFrame(() => {
+			document.querySelector<HTMLTextAreaElement>('textarea[placeholder*="comment"]')?.focus();
+		});
+	}, [post, postId]);
+
 	const loadData = async () => {
 		try {
 			const [currentUser, postData, commentsData] = await Promise.all([

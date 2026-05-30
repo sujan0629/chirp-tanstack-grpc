@@ -55,7 +55,7 @@ const styles = stylex.create({
 	displayName: {
 		fontWeight: 600,
 		fontSize: "0.875rem",
-		color: colors.gray900,
+		color: colors.gray300,
 		textDecoration: "none",
 		transition: "color 0.2s",
 		":hover": {
@@ -81,7 +81,7 @@ const styles = stylex.create({
 	commentContent: {
 		marginTop: spacing.sm,
 		fontSize: "0.875rem",
-		color: colors.gray800,
+		color: colors.gray500,
 		whiteSpace: "pre-wrap",
 		overflowWrap: "break-word",
 		lineHeight: 1.625,

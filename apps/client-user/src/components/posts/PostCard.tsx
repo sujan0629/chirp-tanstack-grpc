@@ -44,6 +44,9 @@ const styles = stylex.create({
 			boxShadow: shadows.md,
 		},
 	},
+	articleFocused: {
+		boxShadow: `0 0 0 3px ${colors.blue500}, ${shadows.md}`,
+	},
 	container: {
 		display: "flex",
 		gap: spacing.md,
@@ -231,11 +234,18 @@ interface PostCardProps {
 		};
 	};
 	currentUserId?: string;
+	focused?: boolean;
 	onDelete?: () => void;
 	onRepostChange?: (result: RepostToggleResult) => void;
 }
 
-export function PostCard({ post, currentUserId, onDelete, onRepostChange }: PostCardProps) {
+export function PostCard({
+	post,
+	currentUserId,
+	focused,
+	onDelete,
+	onRepostChange,
+}: PostCardProps) {
 	const [liked, setLiked] = useState(false);
 	const [likeCount, setLikeCount] = useState(post.likeCount);
 	const [loading, setLoading] = useState(false);
@@ -279,7 +289,12 @@ export function PostCard({ post, currentUserId, onDelete, onRepostChange }: Post
 	};
 
 	return (
-		<article {...stylex.props(styles.article)}>
+		<article
+			data-post-id={post.id}
+			aria-current={focused ? "true" : undefined}
+			tabIndex={focused ? 0 : -1}
+			{...stylex.props(styles.article, focused && styles.articleFocused)}
+		>
 			{post.repost && (
 				<div {...stylex.props(styles.repostMeta)}>
 					<Repeat2 size={16} />
@@ -316,11 +331,12 @@ export function PostCard({ post, currentUserId, onDelete, onRepostChange }: Post
 					</div>
 
 					{/* Post Content */}
-					<Link
-						to="/posts/$postId"
-						params={{ postId: post.id }}
-						{...stylex.props(styles.postContent)}
-					>
+						<Link
+							to="/posts/$postId"
+							params={{ postId: post.id }}
+							data-post-action="open"
+							{...stylex.props(styles.postContent)}
+						>
 						<ParsedContent content={post.content} />
 					</Link>
 
@@ -330,6 +346,8 @@ export function PostCard({ post, currentUserId, onDelete, onRepostChange }: Post
 							type="button"
 							onClick={handleLike}
 							disabled={loading}
+							title={liked ? "Unlike" : "Like"}
+							aria-label={liked ? "Unlike" : "Like"}
 							{...stylex.props(styles.actionButton, liked && styles.actionButtonLiked)}
 						>
 							<Heart
@@ -342,6 +360,8 @@ export function PostCard({ post, currentUserId, onDelete, onRepostChange }: Post
 						<Link
 							to="/posts/$postId"
 							params={{ postId: post.id }}
+							aria-label="Reply"
+							data-post-action="reply"
 							{...stylex.props(styles.commentLink)}
 						>
 							<MessageCircle size={20} />

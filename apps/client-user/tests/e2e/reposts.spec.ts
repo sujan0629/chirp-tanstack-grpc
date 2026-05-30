@@ -3,6 +3,23 @@ import { createPost, loginAs, uniqueId, waitForHydration } from "./fixtures/test
 
 test.describe.configure({ mode: "serial" });
 
+async function deleteOwnPostsMatching(page: Parameters<typeof createPost>[0], pattern: RegExp) {
+	await page.goto("/users/alice", { waitUntil: "networkidle" });
+	await waitForHydration(page);
+
+	while (await page.locator("article").filter({ hasText: pattern }).first().isVisible()) {
+		const post = page.locator("article").filter({ hasText: pattern }).first();
+		const deleteButton = post.getByTitle("Delete post");
+
+		page.once("dialog", (dialog) => {
+			void dialog.accept();
+		});
+		await deleteButton.click();
+		await waitForHydration(page);
+		await expect(post).not.toBeVisible({ timeout: 10000 });
+	}
+}
+
 test.describe("reposts", () => {
 	test("allows reposting another user's post, shows it on the reposter profile, and supports undo", async ({
 		page,
@@ -10,6 +27,9 @@ test.describe("reposts", () => {
 		const content = `Repost target ${uniqueId("repost")}`;
 
 		await loginAs(page, "alice");
+		await deleteOwnPostsMatching(page, /Repost target|Own repost restriction/);
+		await page.goto("/", { waitUntil: "networkidle" });
+		await waitForHydration(page);
 		await createPost(page, content);
 		await page.locator('button[title="Logout"]').click();
 		await expect(page).toHaveURL("/auth/login");
@@ -38,6 +58,10 @@ test.describe("reposts", () => {
 
 		await repostedPost.locator('button[title="Undo repost"]').click();
 		await expect(page.locator("article").filter({ hasText: content })).not.toBeVisible();
+
+		await page.locator('button[title="Logout"]').click();
+		await loginAs(page, "alice");
+		await deleteOwnPostsMatching(page, new RegExp(content));
 	});
 
 	test("prevents users from reposting their own posts", async ({ page }) => {
@@ -51,5 +75,7 @@ test.describe("reposts", () => {
 
 		await expect(ownRepostButton).toBeVisible();
 		await expect(ownRepostButton).toBeDisabled();
+
+		await deleteOwnPostsMatching(page, new RegExp(content));
 	});
 });
