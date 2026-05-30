@@ -15,6 +15,11 @@ vi.mock("../../../src/server/functions/bookmarks", () => ({
 	getBookmarkStatus: vi.fn().mockResolvedValue({ bookmarked: false }),
 }));
 
+vi.mock("../../../src/server/functions/reposts", () => ({
+	toggleRepost: vi.fn().mockResolvedValue({ success: true, reposted: true, repostCount: 1 }),
+	getRepostStatus: vi.fn().mockResolvedValue({ reposted: false, repostCount: 0 }),
+}));
+
 // Mock TanStack Router Link component
 vi.mock("@tanstack/react-router", () => ({
 	Link: ({ children, to }: { children: React.ReactNode; to: string }) => (

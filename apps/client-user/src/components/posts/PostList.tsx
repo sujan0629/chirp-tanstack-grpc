@@ -63,7 +63,7 @@ const styles = stylex.create({
 	},
 });
 
-interface Post {
+export interface Post {
 	id: string;
 	content: string;
 	createdAt: Date;
@@ -76,6 +76,16 @@ interface Post {
 	};
 	likeCount: number;
 	commentCount: number;
+	repostCount?: number;
+	isReposted?: boolean;
+	repost?: {
+		repostedBy: {
+			id: string;
+			username: string;
+			displayName: string;
+		};
+		repostedAt: Date;
+	};
 }
 
 export function PostList({
@@ -83,11 +93,13 @@ export function PostList({
 	loading,
 	currentUserId,
 	onPostDelete,
+	onRepostChange,
 }: {
 	posts: Post[];
 	loading?: boolean;
 	currentUserId?: string;
 	onPostDelete?: () => void;
+	onRepostChange?: () => void;
 }) {
 	if (loading) {
 		return (
@@ -117,7 +129,12 @@ export function PostList({
 					style={{ animationDelay: `${index * 50}ms` }}
 					{...stylex.props(styles.postItem)}
 				>
-					<PostCard post={post} currentUserId={currentUserId} onDelete={onPostDelete} />
+					<PostCard
+						post={post}
+						currentUserId={currentUserId}
+						onDelete={onPostDelete}
+						onRepostChange={onRepostChange}
+					/>
 				</div>
 			))}
 		</div>

@@ -1,6 +1,6 @@
 import * as stylex from "@stylexjs/stylex";
 import { Link } from "@tanstack/react-router";
-import { Edit, Heart, MessageCircle, Trash2 } from "lucide-react";
+import { Edit, Heart, MessageCircle, Repeat2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { togglePostLike } from "../../server/functions/likes";
 import { deletePost } from "../../server/functions/posts";
@@ -9,6 +9,7 @@ import { ParsedContent } from "../shared/ParsedContent";
 import { RelativeTime } from "../shared/RelativeTime";
 import { UserAvatar } from "../users/UserAvatar";
 import { BookmarkButton } from "./BookmarkButton";
+import { RepostButton } from "./RepostButton";
 
 const fadeInUp = stylex.keyframes({
 	from: {
@@ -46,6 +47,16 @@ const styles = stylex.create({
 	container: {
 		display: "flex",
 		gap: spacing.md,
+	},
+	repostMeta: {
+		display: "flex",
+		alignItems: "center",
+		gap: spacing.sm,
+		marginBottom: spacing.sm,
+		marginLeft: "3.5rem",
+		color: colors.green600,
+		fontSize: "0.8125rem",
+		fontWeight: 500,
 	},
 	content: {
 		flex: 1,
@@ -208,12 +219,23 @@ interface PostCardProps {
 		};
 		likeCount: number;
 		commentCount: number;
+		repostCount?: number;
+		isReposted?: boolean;
+		repost?: {
+			repostedBy: {
+				id: string;
+				username: string;
+				displayName: string;
+			};
+			repostedAt: Date;
+		};
 	};
 	currentUserId?: string;
 	onDelete?: () => void;
+	onRepostChange?: () => void;
 }
 
-export function PostCard({ post, currentUserId, onDelete }: PostCardProps) {
+export function PostCard({ post, currentUserId, onDelete, onRepostChange }: PostCardProps) {
 	const [liked, setLiked] = useState(false);
 	const [likeCount, setLikeCount] = useState(post.likeCount);
 	const [loading, setLoading] = useState(false);
@@ -258,6 +280,12 @@ export function PostCard({ post, currentUserId, onDelete }: PostCardProps) {
 
 	return (
 		<article {...stylex.props(styles.article)}>
+			{post.repost && (
+				<div {...stylex.props(styles.repostMeta)}>
+					<Repeat2 size={16} />
+					<span>{post.repost.repostedBy.displayName} reposted</span>
+				</div>
+			)}
 			<div {...stylex.props(styles.container)}>
 				<Link to="/users/$username" params={{ username: post.author.username }}>
 					<UserAvatar avatarUrl={post.author.avatarUrl} username={post.author.username} />
@@ -321,6 +349,8 @@ export function PostCard({ post, currentUserId, onDelete }: PostCardProps) {
 						</Link>
 
 						<BookmarkButton postId={post.id} />
+
+						<RepostButton post={post} currentUserId={currentUserId} onToggle={onRepostChange} />
 
 						{isOwnPost && (
 							<div {...stylex.props(styles.ownerActions)}>

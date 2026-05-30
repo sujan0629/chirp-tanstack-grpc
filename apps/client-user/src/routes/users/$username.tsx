@@ -1,14 +1,15 @@
 import * as stylex from "@stylexjs/stylex";
 import { createFileRoute } from "@tanstack/react-router";
 import { FileText, Users, UserX } from "lucide-react";
-import { useEffect, useState } from "react";
-import { PostList } from "../../components/posts/PostList";
+import { useCallback, useEffect, useState } from "react";
+import { type Post, PostList } from "../../components/posts/PostList";
 import { LoadingSpinner } from "../../components/shared/LoadingSpinner";
 import { FollowButton } from "../../components/users/FollowButton";
 import { UserAvatar } from "../../components/users/UserAvatar";
 import { getCurrentUser } from "../../server/functions/auth";
 import { getFollowerCount, getFollowingCount } from "../../server/functions/follows";
 import { getUserPosts } from "../../server/functions/posts";
+import { getUserReposts } from "../../server/functions/reposts";
 import { getUser } from "../../server/functions/users";
 import {
 	colors,
@@ -23,6 +24,14 @@ import {
 export const Route = createFileRoute("/users/$username")({
 	component: UserProfilePage,
 });
+
+type UserPost = Awaited<ReturnType<typeof getUserPosts>>[number];
+
+function hasPostAuthor(
+	post: UserPost,
+): post is UserPost & { author: NonNullable<UserPost["author"]> } {
+	return post.author !== null;
+}
 
 const styles = stylex.create({
 	container: {
@@ -165,28 +174,54 @@ const styles = stylex.create({
 
 function UserProfilePage() {
 	const { username } = Route.useParams();
-	const [user, setUser] = useState<any>(null);
-	const [posts, setPosts] = useState<any[]>([]);
-	const [currentUser, setCurrentUser] = useState<any>(null);
+	const [user, setUser] = useState<Awaited<ReturnType<typeof getUser>> | null>(null);
+	const [posts, setPosts] = useState<Post[]>([]);
+	const [currentUser, setCurrentUser] = useState<Awaited<ReturnType<typeof getCurrentUser>>>(null);
 	const [followerCount, setFollowerCount] = useState(0);
 	const [followingCount, setFollowingCount] = useState(0);
 	const [loading, setLoading] = useState(true);
 
-	useEffect(() => {
-		loadData();
-	}, [username]);
-
-	const loadData = async () => {
+	const loadData = useCallback(async () => {
+		setLoading(true);
 		try {
-			const [profileUser, userPosts, currentU, followers, following] = await Promise.all([
-				getUser({ data: username }),
-				getUserPosts({ data: username }),
-				getCurrentUser(),
-				getFollowerCount({ data: username }),
-				getFollowingCount({ data: username }),
-			]);
+			const [profileUser, userPosts, userReposts, currentU, followers, following] =
+				await Promise.all([
+					getUser({ data: username }),
+					getUserPosts({ data: username }),
+					getUserReposts({ data: { username } }),
+					getCurrentUser(),
+					getFollowerCount({ data: username }),
+					getFollowingCount({ data: username }),
+				]);
+			const authoredPosts: Post[] = userPosts.filter(hasPostAuthor).map((post) => ({
+				...post,
+				author: post.author,
+			}));
+			const repostsWithProfileName: Post[] = userReposts.map((post) => ({
+				...post,
+				repost: {
+					...post.repost,
+					repostedBy: {
+						...post.repost.repostedBy,
+						displayName: profileUser.displayName,
+					},
+				},
+			}));
+			const getProfilePostDate = (
+				post: (typeof repostsWithProfileName)[number] | (typeof authoredPosts)[number],
+			) => {
+				if ("repost" in post && post.repost) {
+					return post.repost.repostedAt;
+				}
+				return post.createdAt;
+			};
+			const profilePosts = [...repostsWithProfileName, ...authoredPosts].sort((a, b) => {
+				const aDate = getProfilePostDate(a);
+				const bDate = getProfilePostDate(b);
+				return bDate.getTime() - aDate.getTime();
+			});
 			setUser(profileUser);
-			setPosts(userPosts);
+			setPosts(profilePosts);
 			setCurrentUser(currentU);
 			setFollowerCount(followers);
 			setFollowingCount(following);
@@ -195,7 +230,11 @@ function UserProfilePage() {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, [username]);
+
+	useEffect(() => {
+		loadData();
+	}, [loadData]);
 
 	if (loading) {
 		return (
@@ -268,7 +307,12 @@ function UserProfilePage() {
 				<h2 {...stylex.props(styles.postsTitle)}>Posts</h2>
 			</div>
 
-			<PostList posts={posts} currentUserId={currentUser?.id} onPostDelete={loadData} />
+			<PostList
+				posts={posts}
+				currentUserId={currentUser?.id}
+				onPostDelete={loadData}
+				onRepostChange={loadData}
+			/>
 		</div>
 	);
 }
