@@ -146,7 +146,7 @@ export function PostList({
 	onPostDelete?: () => void;
 	onRepostChange?: (result: RepostToggleResult) => void;
 }) {
-	const [focusedIndex, setFocusedIndex] = useState(0);
+	const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
 	const [showShortcuts, setShowShortcuts] = useState(false);
 	const itemRefs = useRef<Array<HTMLDivElement | null>>([]);
 
@@ -161,7 +161,10 @@ export function PostList({
 	);
 
 	useEffect(() => {
-		setFocusedIndex((currentIndex) => Math.min(currentIndex, Math.max(posts.length - 1, 0)));
+		setFocusedIndex((currentIndex) => {
+			if (currentIndex === null) return null;
+			return Math.min(currentIndex, Math.max(posts.length - 1, 0));
+		});
 	}, [posts.length]);
 
 	useEffect(() => {
@@ -177,12 +180,16 @@ export function PostList({
 		};
 
 		const clickFocusedControl = (selector: string) => {
+			if (focusedIndex === null) return;
+
 			itemRefs.current[focusedIndex]
 				?.querySelector<HTMLButtonElement | HTMLAnchorElement>(selector)
 				?.click();
 		};
 
 		const focusReplyAfterOpen = () => {
+			if (focusedIndex === null) return;
+
 			const postId = posts[focusedIndex]?.id;
 			if (postId) {
 				window.sessionStorage.setItem("focusReplyPostId", postId);
@@ -192,6 +199,7 @@ export function PostList({
 
 		const handleKeyDown = (event: KeyboardEvent) => {
 			if (isTextInput(event.target)) return;
+			if (event.ctrlKey || event.metaKey || event.altKey) return;
 
 			if (event.key === "Escape" && showShortcuts) {
 				event.preventDefault();
@@ -209,13 +217,13 @@ export function PostList({
 
 			if (event.key === "j" || event.key === "ArrowDown") {
 				event.preventDefault();
-				focusPost(focusedIndex + 1);
+				focusPost(focusedIndex === null ? 0 : focusedIndex + 1);
 				return;
 			}
 
 			if (event.key === "k" || event.key === "ArrowUp") {
 				event.preventDefault();
-				focusPost(focusedIndex - 1);
+				focusPost(focusedIndex === null ? 0 : focusedIndex - 1);
 				return;
 			}
 
@@ -248,7 +256,7 @@ export function PostList({
 		return () => {
 			window.removeEventListener("keydown", handleKeyDown);
 		};
-	}, [focusPost, focusedIndex, posts.length, showShortcuts]);
+	}, [focusPost, focusedIndex, posts, showShortcuts]);
 
 	if (loading) {
 		return (
@@ -285,7 +293,7 @@ export function PostList({
 						<PostCard
 							post={post}
 							currentUserId={currentUserId}
-							focused={index === focusedIndex}
+							focused={focusedIndex === index}
 							onDelete={onPostDelete}
 							onRepostChange={onRepostChange}
 						/>

@@ -1,3 +1,4 @@
+import { Button } from "@chirp/ui";
 import * as stylex from "@stylexjs/stylex";
 import { Link } from "@tanstack/react-router";
 import { Edit, Heart, MessageCircle, Repeat2, Trash2 } from "lucide-react";
@@ -133,28 +134,25 @@ const styles = stylex.create({
 		marginTop: spacing.sm,
 		padding: spacing.md,
 		borderRadius: radii.lg,
-		backgroundColor: colors.gray50,
+		backgroundColor: semanticColors.bgTertiary,
 		borderWidth: "1px",
 		borderStyle: "solid",
-		borderColor: colors.amber500,
+		borderColor: semanticColors.borderDefault,
 		color: semanticColors.textPrimary,
 	},
 	warningTitle: {
 		fontWeight: 700,
+		color: semanticColors.textPrimary,
 		marginBottom: spacing.xs,
 	},
-	warningButton: {
-		marginTop: spacing.sm,
-		border: "none",
-		borderRadius: radii.full,
-		backgroundColor: colors.amber500,
-		color: colors.white,
-		cursor: "pointer",
-		fontWeight: 700,
-		paddingLeft: spacing.md,
-		paddingRight: spacing.md,
-		paddingTop: spacing.xs,
-		paddingBottom: spacing.xs,
+	warningMessage: {
+		backgroundColor: semanticColors.surfaceInput,
+		borderRadius: radii.md,
+		borderWidth: "1px",
+		borderStyle: "solid",
+		borderColor: semanticColors.borderSubtle,
+		color: semanticColors.textSecondary,
+		padding: spacing.sm,
 	},
 	actions: {
 		display: "flex",
@@ -378,14 +376,16 @@ export function PostCard({
 					{warning && !warningRevealed ? (
 						<div {...stylex.props(styles.warningBox)}>
 							<div {...stylex.props(styles.warningTitle)}>Content warning</div>
-							<div>{warning.warning}</div>
-							<button
+							<div {...stylex.props(styles.warningMessage)}>{warning.warning}</div>
+							<Button
 								type="button"
+								variant="ghost"
+								size="sm"
 								onClick={() => setWarningRevealed(true)}
-								{...stylex.props(styles.warningButton)}
+								style={{ backgroundColor: "rgba(148, 163, 184, 0.16)", marginTop: "0.5rem" }}
 							>
 								Show post
-							</button>
+							</Button>
 						</div>
 					) : (
 						<Link

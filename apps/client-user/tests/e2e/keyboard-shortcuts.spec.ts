@@ -10,6 +10,10 @@ test.describe("keyboard shortcuts", () => {
 		const posts = page.locator("article");
 
 		await expect(posts.first()).toBeVisible();
+		await expect(posts.first()).not.toHaveAttribute("aria-current", "true");
+
+		await page.keyboard.press("j");
+
 		await expect(posts.first()).toHaveAttribute("aria-current", "true");
 
 		await page.keyboard.press("j");
@@ -30,6 +34,8 @@ test.describe("keyboard shortcuts", () => {
 		await page.keyboard.press("Escape");
 		await expect(page.getByRole("dialog", { name: "Keyboard shortcuts" })).not.toBeVisible();
 
+		await page.keyboard.press("j");
+
 		await page.keyboard.press("l");
 		await expect(focusedPost.getByRole("button", { name: "Unlike" })).toBeVisible();
 
@@ -49,7 +55,23 @@ test.describe("keyboard shortcuts", () => {
 		await composer.fill("jklbo?");
 
 		await expect(composer).toHaveValue("jklbo?");
-		await expect(firstPost).toHaveAttribute("aria-current", "true");
+		await expect(firstPost).not.toHaveAttribute("aria-current", "true");
 		await expect(page.getByRole("dialog", { name: "Keyboard shortcuts" })).not.toBeVisible();
+	});
+
+	test("does not run post actions before selecting a post or for modified shortcuts", async ({
+		page,
+	}) => {
+		await page.keyboard.press("r");
+		await waitForHydration(page);
+		await expect(page).toHaveURL("/");
+
+		await page.keyboard.press("o");
+		await waitForHydration(page);
+		await expect(page).toHaveURL("/");
+
+		await page.keyboard.press("ControlOrMeta+R");
+		await waitForHydration(page);
+		await expect(page).toHaveURL("/");
 	});
 });
