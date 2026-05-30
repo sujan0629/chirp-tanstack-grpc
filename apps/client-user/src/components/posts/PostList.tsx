@@ -3,6 +3,7 @@ import { FileText } from "lucide-react";
 import { colors, radii, spacing } from "../../tokens.stylex";
 import { LoadingSpinner } from "../shared/LoadingSpinner";
 import { PostCard } from "./PostCard";
+import type { RepostToggleResult } from "./RepostButton";
 
 const fadeInUp = stylex.keyframes({
 	from: {
@@ -99,7 +100,7 @@ export function PostList({
 	loading?: boolean;
 	currentUserId?: string;
 	onPostDelete?: () => void;
-	onRepostChange?: () => void;
+	onRepostChange?: (result: RepostToggleResult) => void;
 }) {
 	if (loading) {
 		return (

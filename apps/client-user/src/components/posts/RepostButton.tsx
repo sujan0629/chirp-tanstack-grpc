@@ -58,10 +58,16 @@ interface RepostButtonPost {
 	isReposted?: boolean;
 }
 
+export interface RepostToggleResult {
+	postId: string;
+	reposted: boolean;
+	repostCount: number;
+}
+
 interface RepostButtonProps {
 	post: RepostButtonPost;
 	currentUserId?: string;
-	onToggle?: () => void;
+	onToggle?: (result: RepostToggleResult) => void;
 }
 
 export function RepostButton(props: RepostButtonProps) {
@@ -119,7 +125,11 @@ function RepostButtonInner({ post, currentUserId, onToggle }: RepostButtonProps)
 		onSuccess: (result) => {
 			setReposted(result.reposted);
 			setRepostCount(result.repostCount);
-			onToggle?.();
+			onToggle?.({
+				postId: post.id,
+				reposted: result.reposted,
+				repostCount: result.repostCount,
+			});
 		},
 		onError: (error) => {
 			console.error("Failed to toggle repost:", error);

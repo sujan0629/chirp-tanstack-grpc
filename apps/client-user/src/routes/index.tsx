@@ -1,9 +1,10 @@
 import * as stylex from "@stylexjs/stylex";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { MessageCircle, Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { PostForm } from "../components/posts/PostForm";
 import { PostList } from "../components/posts/PostList";
+import { useInfinitePosts } from "../components/posts/useInfinitePosts";
 import { getCurrentUser } from "../server/functions/auth";
 import { getHomeFeed } from "../server/functions/feed";
 import { colors, fontSize, fontWeight, radii, semanticColors, spacing } from "../tokens.stylex";
@@ -115,34 +116,74 @@ const styles = stylex.create({
 		flexDirection: "column",
 		gap: spacing.md,
 	},
+	loadMoreSentinel: {
+		minHeight: "1px",
+	},
+	loadingMore: {
+		paddingTop: spacing.lg,
+		paddingBottom: spacing.lg,
+		textAlign: "center",
+		color: semanticColors.textSecondary,
+		fontSize: fontSize.sm,
+	},
 	iconWhite: {
 		color: colors.white,
 	},
 });
 
 function HomePage() {
-	const [posts, setPosts] = useState<any[]>([]);
-	const [user, setUser] = useState<any>(null);
-	const [loading, setLoading] = useState(true);
+	const [user, setUser] = useState<Awaited<ReturnType<typeof getCurrentUser>>>(null);
+	const [loadingUser, setLoadingUser] = useState(true);
 
-	useEffect(() => {
-		loadData();
+	const fetchHomePosts = useCallback(
+		(options: { limit: number; offset: number }) => getHomeFeed({ data: options }),
+		[],
+	);
+	const {
+		posts,
+		initialLoading,
+		loadingMore,
+		hasMore,
+		sentinelRef,
+		refresh: refreshFeed,
+		updatePost,
+	} = useInfinitePosts({
+		cacheKey: "home-feed",
+		enabled: user !== null,
+		fetchPosts: fetchHomePosts,
+	});
+
+	const loadUser = useCallback(async () => {
+		try {
+			const currentUser = await getCurrentUser();
+			setUser(currentUser);
+		} catch (error) {
+			console.error("Failed to load user:", error);
+		} finally {
+			setLoadingUser(false);
+		}
 	}, []);
 
-	const loadData = async () => {
-		try {
-			const [currentUser, feedPosts] = await Promise.all([
-				getCurrentUser(),
-				getHomeFeed({ data: {} }),
-			]);
-			setUser(currentUser);
-			setPosts(feedPosts);
-		} catch (error) {
-			console.error("Failed to load data:", error);
-		} finally {
-			setLoading(false);
-		}
-	};
+	useEffect(() => {
+		void loadUser();
+	}, [loadUser]);
+
+	const refreshData = useCallback(async () => {
+		await refreshFeed();
+	}, [refreshFeed]);
+
+	const handleRepostChange = useCallback(
+		(result: { postId: string; reposted: boolean; repostCount: number }) => {
+			updatePost(result.postId, (post) => ({
+				...post,
+				isReposted: result.reposted,
+				repostCount: result.repostCount,
+			}));
+		},
+		[updatePost],
+	);
+
+	const loading = loadingUser || initialLoading;
 
 	if (!user && !loading) {
 		return (
@@ -179,7 +220,7 @@ function HomePage() {
 			{/* Post Form */}
 			{user && (
 				<div {...stylex.props(styles.formWrapper)}>
-					<PostForm onSuccess={loadData} />
+					<PostForm onSuccess={refreshData} />
 				</div>
 			)}
 
@@ -189,8 +230,11 @@ function HomePage() {
 					posts={posts}
 					loading={loading}
 					currentUserId={user?.id}
-					onPostDelete={loadData}
+					onPostDelete={refreshData}
+					onRepostChange={handleRepostChange}
 				/>
+				{user && hasMore && <div ref={sentinelRef} {...stylex.props(styles.loadMoreSentinel)} />}
+				{loadingMore && <div {...stylex.props(styles.loadingMore)}>Loading more posts...</div>}
 			</div>
 		</div>
 	);

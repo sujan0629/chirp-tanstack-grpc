@@ -9,7 +9,7 @@ import { ParsedContent } from "../shared/ParsedContent";
 import { RelativeTime } from "../shared/RelativeTime";
 import { UserAvatar } from "../users/UserAvatar";
 import { BookmarkButton } from "./BookmarkButton";
-import { RepostButton } from "./RepostButton";
+import { RepostButton, type RepostToggleResult } from "./RepostButton";
 
 const fadeInUp = stylex.keyframes({
 	from: {
@@ -232,7 +232,7 @@ interface PostCardProps {
 	};
 	currentUserId?: string;
 	onDelete?: () => void;
-	onRepostChange?: () => void;
+	onRepostChange?: (result: RepostToggleResult) => void;
 }
 
 export function PostCard({ post, currentUserId, onDelete, onRepostChange }: PostCardProps) {

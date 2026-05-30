@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { FileText, Users, UserX } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { type Post, PostList } from "../../components/posts/PostList";
+import type { RepostToggleResult } from "../../components/posts/RepostButton";
 import { LoadingSpinner } from "../../components/shared/LoadingSpinner";
 import { FollowButton } from "../../components/users/FollowButton";
 import { UserAvatar } from "../../components/users/UserAvatar";
@@ -236,6 +237,33 @@ function UserProfilePage() {
 		loadData();
 	}, [loadData]);
 
+	const handleRepostChange = useCallback(
+		(result: RepostToggleResult) => {
+			setPosts((currentPosts) =>
+				currentPosts
+					.filter((post) => {
+						if (currentUser?.username !== username || result.reposted || !post.repost) {
+							return true;
+						}
+
+						return post.id !== result.postId;
+					})
+					.map((post) => {
+						if (post.id !== result.postId) {
+							return post;
+						}
+
+						return {
+							...post,
+							isReposted: result.reposted,
+							repostCount: result.repostCount,
+						};
+					}),
+			);
+		},
+		[currentUser?.username, username],
+	);
+
 	if (loading) {
 		return (
 			<div {...stylex.props(styles.loadingWrapper)}>
@@ -311,7 +339,7 @@ function UserProfilePage() {
 				posts={posts}
 				currentUserId={currentUser?.id}
 				onPostDelete={loadData}
-				onRepostChange={loadData}
+				onRepostChange={handleRepostChange}
 			/>
 		</div>
 	);
