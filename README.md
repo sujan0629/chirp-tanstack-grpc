@@ -2,7 +2,7 @@
 
 A Twitter-like social media platform built as a monorepo with TanStack Start, React 19, gRPC, StyleX, and SQLite.
 
-> NOTE: Task details are documented in TASK.md
+> Development project: user app, moderation app, and API in one workspace. See [the original task](TASK.md) for its implementation brief.
 
 ## Architecture
 
@@ -13,6 +13,8 @@ Chirp is a full-stack monorepo application with:
 - **API Server** (`apps/api`) - gRPC-based backend service
 
 ## Quick Start
+
+Use Node.js with the repository's pinned pnpm 9.15.0. Clone `https://github.com/sujan0629/chirp-tanstack-grpc.git`, then run these commands from its root.
 
 ```bash
 # Install dependencies
@@ -38,19 +40,9 @@ pnpm run dev
 | Admin App | http://localhost:3002 | Admin dashboard |
 | API Server | http://localhost:3001 | gRPC API (health check at /health) |
 
-## Test Accounts
+## Local demo
 
-After running the seed script:
-
-### Regular Users
-- alice@test.com / password123
-- bob@test.com / password123
-- charlie@test.com / password123
-- diana@test.com / password123
-- eve@test.com / password123
-
-### Admin User
-- admin@chirp.com / admin123
+Use the [local seed account guide](docs/LOCAL-DEMO.md) after seeding a disposable development database. Seed accounts are for local testing only.
 
 ## Features
 
